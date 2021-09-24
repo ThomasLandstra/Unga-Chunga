@@ -12,7 +12,7 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 pygame.display.set_icon(pygame.image.load("img/player/Idle/0.png"))
 
-pygame.display.set_caption("Unga Chunga")
+pygame.display.set_caption("Unga Chunga :: Modern Warfare")
 
 
 # Clock

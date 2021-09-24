@@ -20,7 +20,7 @@ clock = pygame.time.Clock()
 
 
 # Game Variables
-BG = (144, 201, 120)
+BG = (144, 120, 210)
 BLACK = (0, 0, 0)
 FPS = 60
 JUMP = -11
@@ -30,9 +30,12 @@ GRAVITY = 0.75
 moving_left = False
 moving_right = False
 shoot = False
+grenade = False
+grenade_thrown = False
 
 # Images
 bullet_img = pygame.image.load("img/icons/bullet.png").convert_alpha()
+grenade_img = pygame.image.load("img/icons/grenade.png").convert_alpha()
 
 
 # Functions
@@ -48,7 +51,7 @@ def draw_bg():
 
 # Classes
 class Soilder(pygame.sprite.Sprite):
-    def __init__(self, char_type: str, x: int, y: int, scale, speed, ammo):
+    def __init__(self, char_type: str, x: int, y: int, scale, speed, ammo, grenades):
         # Inherit sprite class
         pygame.sprite.Sprite.__init__(self)
 
@@ -60,6 +63,7 @@ class Soilder(pygame.sprite.Sprite):
         self.speed = int(speed * 5)
         self.ammo = ammo
         self.start_ammo = ammo
+        self.grenades = grenades
         self.shoot_cooldown = 0
         self.fire_rate = 20  # Lower is better
         self.health = 100
@@ -218,12 +222,44 @@ class Bullet(pygame.sprite.Sprite):
             self.kill()
 
 
+class Grenade(pygame.sprite.Sprite):
+    def __init__(self, x, y, direction):
+        pygame.sprite.Sprite.__init__(self)
+        self.timer = 100
+        self.vel_y = -11
+        self.speed = 7
+        self.image = grenade_img
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.direction = direction
+
+    def update(self):
+        self.vel_y += GRAVITY
+        dx = self.direction * self.speed
+        dy = self.vel_y
+
+        # Check floor collision
+        if self.rect.bottom + dy > 400:
+            dy = 400 - self.rect.bottom
+            self.speed = 0
+
+        # Check walls
+        if self.rect.left + dx < 0 or self.rect.right + dx > SCREEN_WIDTH:
+            self.direction *= -1
+            dx = self.direction * self.speed
+
+        # Update position
+        self.rect.x += dx
+        self.rect.y += dy
+
+
 # Create sprite groups
 bullet_group = pygame.sprite.Group()
+grenade_group = pygame.sprite.Group()
 
 # Create Assets
-player = Soilder("player", 200, 200, 3, 1, 20)
-enemy = Soilder("enemy", 400, 300, 3, 1, 20)
+player = Soilder("player", 200, 200, 3, 1, 20, 5)
+enemy = Soilder("enemy", 400, 350, 3, 1, 20, 0)
 
 run = True
 while run:
@@ -237,12 +273,26 @@ while run:
 
     # Update and draw groups
     bullet_group.update()
+    grenade_group.update()
     bullet_group.draw(screen)
+    grenade_group.draw(screen)
 
     # Update player action
     if player.alive:
         if shoot:
             player.fire()
+        elif grenade and not grenade_thrown and player.grenades > 0:
+            grenade_group.add(
+                Grenade(
+                    player.rect.centerx
+                    + (player.rect.size[0] * 0.5 * player.direction),
+                    player.rect.top,
+                    player.direction,
+                )
+            )
+            grenade_thrown = True
+            player.grenades -= 1
+
         if player.in_air:
             player.update_action(2)  # Run
         elif moving_left or moving_right:
@@ -263,6 +313,8 @@ while run:
                 moving_left = True
             if event.key == pygame.K_d:
                 moving_right = True
+            if event.key == pygame.K_g:
+                grenade = True
             if event.key == pygame.K_w and player.alive:
                 player.jump = True
             if event.key == pygame.K_SPACE:
@@ -276,6 +328,9 @@ while run:
                 moving_left = False
             if event.key == pygame.K_d:
                 moving_right = False
+            if event.key == pygame.K_g:
+                grenade = False
+                grenade_thrown = False
             if event.key == pygame.K_SPACE:
                 shoot = False
 

@@ -1,4 +1,6 @@
 # Imports
+from argparse import Action
+from matplotlib import animation
 from matplotlib.pyplot import draw
 import pygame
 
@@ -44,15 +46,31 @@ class Soilder(pygame.sprite.Sprite):
         self.speed = int(speed * 5)
         self.direction = 1
         self.flip = False
+        self.animation_list = []
+        self.frame_index = 0
+        self.action = 0
+        self.update_time = pygame.time.get_ticks()
 
-        # Draw soilder
-        image = pygame.image.load(f"img/{self.char_type}/Idle/0.png")
-        self.img = pygame.transform.scale(
-            image, (int(image.get_width() * scale), int(image.get_height() * scale))
-        )
+        # Add animations
+        def create_animations(range_amount, animation_name):
+            temp_list = []
+            for i in range(range_amount):
+                img = pygame.image.load(
+                    f"img/{self.char_type}/{animation_name}/{i}.png"
+                )
+                img = pygame.transform.scale(
+                    img, (int(img.get_width() * scale), int(img.get_height() * scale))
+                )
+                temp_list.append(img)
+
+            self.animation_list.append(temp_list)
+
+        create_animations(5, "Idle")
+        create_animations(6, "Run")
 
         # Draw rectangle
-        self.rect = self.img.get_rect()
+        self.image = self.animation_list[self.action][self.frame_index]
+        self.rect = self.image.get_rect()
         self.rect.center = (x, y)
 
     def move(self, moving_left, moving_right):
@@ -76,8 +94,28 @@ class Soilder(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.x += dy
 
+    def update_animation(self):
+        # Update animation
+        ANIMATION_COOLDOWN = 100
+
+        # Update Image
+        self.image = self.animation_list[self.action][self.frame_index]
+
+        # Check time
+        if pygame.time.get_ticks() - self.update_time > ANIMATION_COOLDOWN:
+            self.update_time = pygame.time.get_ticks()
+            self.frame_index += 1
+            if self.frame_index >= len(self.animation_list[self.action]):
+                self.frame_index = 0
+
+    def update_action(self, new_action):
+        if new_action != self.action:
+            self.action = new_action
+            self.frame_index = 0
+            self.update_time = pygame.time.get_ticks()
+
     def draw(self):
-        screen.blit(pygame.transform.flip(self.img, self.flip, False), self.rect)
+        screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
 
 
 # Create Assets
@@ -91,7 +129,15 @@ while run:
     draw_bg()
 
     enemy.draw()
+    player.update_animation()
     player.draw()
+
+    # Update player action
+    if moving_left or moving_right:
+        player.update_action(1)  # Run
+    else:
+        player.update_action(0)  # Idle
+
     player.move(moving_left, moving_right)
 
     for event in pygame.event.get():

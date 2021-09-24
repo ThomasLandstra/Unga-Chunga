@@ -1,8 +1,7 @@
 # Imports
-from argparse import Action
-from matplotlib import animation
-from matplotlib.pyplot import draw
+import black
 import pygame
+import os
 
 pygame.init()
 
@@ -19,20 +18,29 @@ pygame.display.set_caption("Unga Chunga")
 
 # Clock
 clock = pygame.time.Clock()
-FPS = 60
 
+
+# Game Variables
+BG = (144, 201, 120)
+BLACK = (0, 0, 0)
+FPS = 60
+JUMP = -11
+GRAVITY = 0.75
 
 # Player Variables
 moving_left = False
 moving_right = False
 
 
-# Define Colours
-BG = (144, 201, 120)
-
 # Functions
 def draw_bg():
     screen.fill(BG)
+    pygame.draw.line(
+        screen,
+        BLACK,
+        (0, 400),
+        (SCREEN_WIDTH, 400),
+    )
 
 
 # Classes
@@ -42,9 +50,13 @@ class Soilder(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
 
         # Variables
+        self.alive = True
+        self.jump = False
+        self.in_air = True
         self.char_type = char_type
         self.speed = int(speed * 5)
         self.direction = 1
+        self.vel_y = 0
         self.flip = False
         self.animation_list = []
         self.frame_index = 0
@@ -52,21 +64,18 @@ class Soilder(pygame.sprite.Sprite):
         self.update_time = pygame.time.get_ticks()
 
         # Add animations
-        def create_animations(range_amount, animation_name):
+        animation_types = ["Idle", "Run", "Jump"]
+        for animation in animation_types:
             temp_list = []
-            for i in range(range_amount):
-                img = pygame.image.load(
-                    f"img/{self.char_type}/{animation_name}/{i}.png"
-                )
+            number_of_frames = len(os.listdir(f"img/{self.char_type}/{animation}"))
+            for i in range(number_of_frames):
+                img = pygame.image.load(f"img/{self.char_type}/{animation}/{i}.png")
                 img = pygame.transform.scale(
                     img, (int(img.get_width() * scale), int(img.get_height() * scale))
                 )
                 temp_list.append(img)
 
             self.animation_list.append(temp_list)
-
-        create_animations(5, "Idle")
-        create_animations(6, "Run")
 
         # Draw rectangle
         self.image = self.animation_list[self.action][self.frame_index]
@@ -90,9 +99,28 @@ class Soilder(pygame.sprite.Sprite):
         if moving_left and moving_right:
             dx = 0
 
+        # Jump
+        if self.in_air:
+            self.jump = False
+        if self.jump and not self.in_air:
+            self.vel_y = JUMP
+            self.jump = False
+            self.in_air = True
+
+        # Apply Gravity
+        self.vel_y += GRAVITY
+        if self.vel_y > 11:  # Terminal Velocity
+            self.vel_y = 11
+        dy += self.vel_y
+
+        # Check floor collision
+        if self.rect.bottom + dy > 400:
+            dy = 400 - self.rect.bottom
+            self.in_air = False
+
         # update positon
         self.rect.x += dx
-        self.rect.x += dy
+        self.rect.y += dy
 
     def update_animation(self):
         # Update animation
@@ -133,12 +161,14 @@ while run:
     player.draw()
 
     # Update player action
-    if moving_left or moving_right:
-        player.update_action(1)  # Run
-    else:
-        player.update_action(0)  # Idle
-
-    player.move(moving_left, moving_right)
+    if player.alive:
+        if player.in_air:
+            player.update_action(2)  # Run
+        elif moving_left or moving_right:
+            player.update_action(1)  # Run
+        else:
+            player.update_action(0)  # Idle
+        player.move(moving_left, moving_right)
 
     for event in pygame.event.get():
         # Quit Game
@@ -151,6 +181,12 @@ while run:
                 moving_left = True
             if event.key == pygame.K_d:
                 moving_right = True
+            if event.key == pygame.K_w and player.alive:
+                player.jump = True
+            if event.key == pygame.K_SPACE and player.alive:
+                player.jump = True
+            if event.key == pygame.K_ESCAPE:
+                run = False
 
         # Keyboard releases
         if event.type == pygame.KEYUP:
@@ -158,8 +194,6 @@ while run:
                 moving_left = False
             if event.key == pygame.K_d:
                 moving_right = False
-            if event.key == pygame.K_ESCAPE:
-                run = False
 
     pygame.display.update()
 

@@ -1,5 +1,4 @@
 # Imports
-import black
 import pygame
 import os
 
@@ -30,6 +29,9 @@ GRAVITY = 0.75
 # Player Variables
 moving_left = False
 moving_right = False
+
+# Images
+bullet_img = pygame.image.load("img/icons/bullet.png").convert_alpha()
 
 
 # Functions
@@ -69,7 +71,9 @@ class Soilder(pygame.sprite.Sprite):
             temp_list = []
             number_of_frames = len(os.listdir(f"img/{self.char_type}/{animation}"))
             for i in range(number_of_frames):
-                img = pygame.image.load(f"img/{self.char_type}/{animation}/{i}.png")
+                img = pygame.image.load(
+                    f"img/{self.char_type}/{animation}/{i}.png"
+                ).convert_alpha()
                 img = pygame.transform.scale(
                     img, (int(img.get_width() * scale), int(img.get_height() * scale))
                 )
@@ -146,12 +150,24 @@ class Soilder(pygame.sprite.Sprite):
         screen.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
 
 
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, x, y, direction):
+        pygame.sprite.Sprite.__init__(self)
+        self.speed = 10
+        self.image = bullet_img
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.direction = direction
+
+
+# Create sprite groups
+bullet_group = pygame.sprite.Group()
+
 # Create Assets
 player = Soilder("player", 200, 200, 3, 1)
 enemy = Soilder("enemy", 400, 200, 3, 1)
 
 run = True
-
 while run:
     clock.tick(FPS)
     draw_bg()
@@ -159,6 +175,10 @@ while run:
     enemy.draw()
     player.update_animation()
     player.draw()
+
+    # Update and draw groups
+    bullet_group.update()
+    bullet_group.draw()
 
     # Update player action
     if player.alive:
@@ -170,6 +190,7 @@ while run:
             player.update_action(0)  # Idle
         player.move(moving_left, moving_right)
 
+    # Player events
     for event in pygame.event.get():
         # Quit Game
         if event.type == pygame.QUIT:
@@ -195,6 +216,7 @@ while run:
             if event.key == pygame.K_d:
                 moving_right = False
 
+    # Draw screen
     pygame.display.update()
 
-pygame.quit()
+pygame.quit()  # Quit game once loop is broken
